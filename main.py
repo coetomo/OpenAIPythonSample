@@ -1,7 +1,14 @@
-import openai
 import os
+import pprint
+
+import openai
 import requests
 from PIL import Image
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+IMAGE, MODERATE = 0, 1
+
 
 def generate_image(text):
     """
@@ -19,9 +26,29 @@ def generate_image(text):
         return None
     return res["data"][0]["url"]
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-text = input("What image you would like me to generate? ")
-url = generate_image(text)
-if url:
-    im = Image.open(requests.get(url, stream=True).raw)
-    im.show()
+
+def moderate(text):
+    """
+    Analyzes text and detects any harmful or unpleasant words
+
+    :param text: text prompt to be moderated
+    :return: categories and scores in a dictionary
+    """
+    response = openai.Moderation.create(
+        input=text
+    )
+    return response["results"][0]
+
+
+if __name__ == "__main__":
+    choice = MODERATE
+    if choice == IMAGE:
+        text = input("What image you would like me to generate? ")
+        url = generate_image(text)
+        if url:
+            im = Image.open(requests.get(url, stream=True).raw)
+            im.show()
+    else:
+        text = input("Enter the text for me to check: ")
+        output = moderate(text)
+        pprint.pprint(output)
