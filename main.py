@@ -41,7 +41,7 @@ def moderate(text):
 
 
 if __name__ == "__main__":
-    choice = MODERATE
+    choice = IMAGE
     if choice == IMAGE:
         text = input("What image you would like me to generate? ")
         url = generate_image(text)

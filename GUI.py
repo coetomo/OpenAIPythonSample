@@ -18,22 +18,22 @@ class App(tk.Tk):
         self.geometry("400x200")
         self.choice = tk.StringVar(value='image')
 
-        label = tk.Label(self, text="Choose an option:", font=("Arial", 14))  # Increased font size
+        label = tk.Label(self, text="Choose an option:", font=("Arial", 14))
         label.pack(pady=10)
 
         image_button = tk.Radiobutton(self, text="Image Generation", variable=self.choice, value="image",
-                                      font=("Arial", 12))  # Increased font size
+                                      font=("Arial", 12))
         image_button.pack()
 
         text_button = tk.Radiobutton(self, text="Text Moderation", variable=self.choice, value="text",
-                                     font=("Arial", 12))  # Increased font size
+                                     font=("Arial", 12))
         text_button.pack()
 
-        self.text_entry = tk.Entry(self, width=40, font=("Arial", 12))  # Increased font size
+        self.text_entry = tk.Entry(self, width=40, font=("Arial", 12))
         self.text_entry.pack(pady=10)
 
         submit_button = tk.Button(self, text="Submit", command=self.process_choice,
-                                  font=("Arial", 12))  # Increased font size
+                                  font=("Arial", 12))
         submit_button.pack()
 
     def process_choice(self):
@@ -41,6 +41,7 @@ class App(tk.Tk):
         user_input = self.text_entry.get()
 
         if choice == "image":
+            url = None
             try:
                 url = generate_image(user_input)
             except openai.error.InvalidRequestError as err:
