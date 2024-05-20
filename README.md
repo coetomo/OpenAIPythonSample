@@ -7,6 +7,7 @@ with their API.
 - Generate Image from prompt (using DALL-E model)
 - Text Moderation
 - Text and GUI modes (Tkinter)
+- Generate captions for images/memes
 - (more to come?)
 
 *Requires OpenAI API key to be set as an environment variable:*
