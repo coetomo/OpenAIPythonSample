@@ -76,26 +76,37 @@ def generate_meme_caption(url, text=DEFAULT_PROMPT_MEME):
     return response.choices[0].message.content.strip()
 
 
-def draw_text(draw, text, position, font_path, max_width, fontsize=40):
+def draw_text(draw, text, position, font_path, max_width, min_fontsize=40):
+    fontsize = min_fontsize
     font = ImageFont.truetype(font_path, fontsize)
 
-    words = text.split()
-    lines = []
-    current_line = []
-    current_width = 0
+    # Repeat with larger font if it doesn't cover the minimum width covered
+    while True:
+        words = text.split()
+        lines = []
+        current_line = []
+        current_width = 0
 
-    for word in words:
-        word_width = draw.textbbox((0, 0), word + " ", font=font)[2]
-        if current_width + word_width <= max_width:
-            current_line.append(word)
-            current_width += word_width
-        else:
+        # Split to multi-lines if it's too long
+        for word in words:
+            word_width = draw.textbbox((0, 0), word + " ", font=font)[2]
+            if current_width + word_width <= max_width:
+                current_line.append(word)
+                current_width += word_width
+            else:
+                lines.append(' '.join(current_line))
+                current_line = [word]
+                current_width = word_width
+
+        if current_line:
             lines.append(' '.join(current_line))
-            current_line = [word]
-            current_width = word_width
 
-    if current_line:
-        lines.append(' '.join(current_line))
+        text_width = max(draw.textbbox((0, 0), line, font=font)[2] for line in lines)
+        if text_width >= max_width * 0.85:
+            break
+        else:
+            fontsize += 2
+            font = ImageFont.truetype(font_path, fontsize)
 
     y_offset = position[1]
     # Draw each line of text
@@ -112,12 +123,12 @@ def draw_captions(img, top_text, bottom_text, show_image=False, save_as=None):
     max_width = img.width * 0.95
 
     # Draw the top caption
-    top_y_position = 0
-    draw_text(draw, top_text, (img.width * 0.025, top_y_position), font_path, max_width, fontsize=40)
+    top_y_position = 5
+    draw_text(draw, top_text, (img.width * 0.025, top_y_position), font_path, max_width)
 
     # Draw the bottom caption
     bottom_y_position = img.height - 100
-    draw_text(draw, bottom_text, (img.width * 0.025, bottom_y_position), font_path, max_width, fontsize=40)
+    draw_text(draw, bottom_text, (img.width * 0.025, bottom_y_position), font_path, max_width)
 
     if show_image:
         img.show()
