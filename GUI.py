@@ -6,7 +6,7 @@ import openai
 import requests
 from PIL import Image, ImageTk
 
-from main import generate_image, moderate
+from main import generate_image, moderate, memeify
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -15,19 +15,23 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("OpenAI Python")
-        self.geometry("400x200")
+        self.geometry("400x250")
         self.choice = tk.StringVar(value='image')
 
         label = tk.Label(self, text="Choose an option:", font=("Arial", 14))
         label.pack(pady=10)
 
-        image_button = tk.Radiobutton(self, text="Image Generation", variable=self.choice, value="image",
+        image_button = tk.Radiobutton(self, text="Generate Image", variable=self.choice, value="image",
                                       font=("Arial", 12))
         image_button.pack()
 
-        text_button = tk.Radiobutton(self, text="Text Moderation", variable=self.choice, value="text",
+        text_button = tk.Radiobutton(self, text="Moderate Text", variable=self.choice, value="text",
                                      font=("Arial", 12))
         text_button.pack()
+
+        meme_button = tk.Radiobutton(self, text="Generate Meme", variable=self.choice, value="meme",
+                                     font=("Arial", 12))
+        meme_button.pack()
 
         self.text_entry = tk.Entry(self, width=40, font=("Arial", 12))
         self.text_entry.pack(pady=10)
@@ -44,8 +48,8 @@ class App(tk.Tk):
             url = None
             try:
                 url = generate_image(user_input)
-            except openai.error.InvalidRequestError as err:
-                messagebox.showerror("Error", str(err))
+            except Exception as e:
+                messagebox.showerror("Error", f"Image generation failed: {str(e)}")
             if url:
                 self.show_image(url)
             else:
@@ -55,9 +59,18 @@ class App(tk.Tk):
             output = moderate(user_input)
             self.display_output(output)
 
-    def show_image(self, url):
-        response = requests.get(url, stream=True)
-        img = Image.open(response.raw)
+        elif choice == "meme":
+            try:
+                meme_img = memeify(user_input)
+                self.show_image(img=meme_img)
+            except Exception as e:
+                messagebox.showerror("Error", f"Meme generation failed: {str(e)}")
+
+    def show_image(self, url=None, img=None):
+        if url:
+            response = requests.get(url, stream=True)
+            img = Image.open(response.raw)
+
         img = img.resize((512, 512), Image.LANCZOS)
         img = ImageTk.PhotoImage(img)
         image_window = tk.Toplevel(self)

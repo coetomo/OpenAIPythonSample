@@ -3,11 +3,14 @@ import pprint
 
 import openai
 import requests
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
+from openai import OpenAI
+
+DEFAULT_PROMPT_MEME = "I want you to create a funny meme out of this picture. Please give me the captions (as top and bottom text) for the meme (don't say anything else, respond as {top text} new line char {bottom text}, don't add labels like top or bottom text, no NSFW words, and don't add quotes)"
+IMAGE, MODERATE, MEME = 0, 1, 2
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
-IMAGE, MODERATE = 0, 1
+client = OpenAI()
 
 
 def generate_image(text):
@@ -17,38 +20,147 @@ def generate_image(text):
     :param text: text prompt for OpenAI image generation
     :return: URL to the image or None if failed
     """
-    res = openai.Image.create(
+    res = client.images.generate(
+        model="dall-e-3",
         prompt=text,
         n=1,
-        size="256x256",
+        quality="standard",
+        size="1024x1024",
     )
-    if "data" not in res:
-        return None
-    return res["data"][0]["url"]
+    try:
+        url = res.data[0].url
+    except (IndexError, AttributeError, KeyError) as e:
+        url = None
+    return url
 
 
 def moderate(text):
     """
-    Analyzes text and detects any harmful or unpleasant words
+    Uses OpenAI API to analyzes text and detects any harmful or unpleasant words
 
     :param text: text prompt to be moderated
     :return: categories and scores in a dictionary
     """
-    response = openai.Moderation.create(
+    response = client.moderations.create(
         input=text
     )
-    return response["results"][0]
+    return response.results[0].to_dict()
+
+
+def generate_meme_caption(url, text=DEFAULT_PROMPT_MEME):
+    """
+    Uses OpenAI API (GPT-4o Vision) to generate a caption for a meme from an online image.
+
+    :param url: URL to the image
+    :param text: Prompt for OpenAI API. The default prompt will produce captions as top and bottom text.
+    :return: the caption generated as a single string
+    """
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": text},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": url,
+                        },
+                    },
+                ],
+            }
+        ],
+        max_tokens=100,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def draw_text(draw, text, position, font_path, max_width, fontsize=40):
+    font = ImageFont.truetype(font_path, fontsize)
+
+    words = text.split()
+    lines = []
+    current_line = []
+    current_width = 0
+
+    for word in words:
+        word_width = draw.textbbox((0, 0), word + " ", font=font)[2]
+        if current_width + word_width <= max_width:
+            current_line.append(word)
+            current_width += word_width
+        else:
+            lines.append(' '.join(current_line))
+            current_line = [word]
+            current_width = word_width
+
+    if current_line:
+        lines.append(' '.join(current_line))
+
+    y_offset = position[1]
+    # Draw each line of text
+    for line in lines:
+        _, _, line_width, text_height = draw.textbbox((0, 0), line, font=font)
+        draw.text(((max_width - line_width) / 2 + position[0], y_offset), line, font=font, fill="white",
+                  stroke_width=2, stroke_fill="black")
+        y_offset += text_height + 10
+
+
+def draw_captions(img, top_text, bottom_text, show_image=False, save_as=None):
+    draw = ImageDraw.Draw(img)
+    font_path = "impact.ttf"
+    max_width = img.width * 0.95
+
+    # Draw the top caption
+    top_y_position = 0
+    draw_text(draw, top_text, (img.width * 0.025, top_y_position), font_path, max_width, fontsize=40)
+
+    # Draw the bottom caption
+    bottom_y_position = img.height - 100
+    draw_text(draw, bottom_text, (img.width * 0.025, bottom_y_position), font_path, max_width, fontsize=40)
+
+    if show_image:
+        img.show()
+
+    if save_as:
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img.save(save_as)
+        print(f"Image saved as {save_as}!")
+
+    return img
+
+
+def memeify(url, caption=None, show_image=False, save_as=None):
+    if caption is None:
+        caption = generate_meme_caption(url)
+    top, bot = caption.split("\n")
+
+    img = Image.open(requests.get(url, stream=True).raw)
+    meme_img = draw_captions(img, top, bot, show_image=show_image, save_as=save_as)
+
+    return meme_img
 
 
 if __name__ == "__main__":
-    choice = IMAGE
+    prompt = (
+        f"Choose an option:\n"
+        f"{IMAGE}: Generate an Image\n"
+        f"{MODERATE}: Moderate Text\n"
+        f"{MEME}: Create a Meme\n"
+        "Enter your choice: "
+    )
+    choice = int(input(prompt))
     if choice == IMAGE:
         text = input("What image you would like me to generate? ")
         url = generate_image(text)
         if url:
             im = Image.open(requests.get(url, stream=True).raw)
             im.show()
-    else:
+    elif choice == MODERATE:
         text = input("Enter the text for me to check: ")
         output = moderate(text)
         pprint.pprint(output)
+    elif choice == MEME:
+        url = input("Enter URL for an image to be memeified: ")
+        memeify(url, caption=None, show_image=True)
