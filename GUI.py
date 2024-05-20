@@ -1,4 +1,6 @@
+import itertools
 import os
+import threading
 import tkinter as tk
 from tkinter import messagebox
 
@@ -40,38 +42,80 @@ class App(tk.Tk):
                                   font=("Arial", 12))
         submit_button.pack()
 
+    def show_loading(self):
+        self.loading_window = tk.Toplevel(self)
+        self.loading_window.title("Loading")
+        self.loading_window.geometry("200x100")
+        self.loading_window.resizable(False, False)
+
+        self.update_idletasks()
+        main_x = self.winfo_x()
+        main_y = self.winfo_y()
+        main_w = self.winfo_width()
+        main_h = self.winfo_height()
+        loading_w = self.loading_window.winfo_width()
+        loading_h = self.loading_window.winfo_height()
+        pos_x = main_x + (main_w // 2) - (loading_w // 2)
+        pos_y = main_y + (main_h // 2) - (loading_h // 2)
+        self.loading_window.geometry(f"+{pos_x}+{pos_y}")
+
+        # Add loading label with animation
+        self.loading_label = tk.Label(self.loading_window, text="Loading", font=("Arial", 14))
+        self.loading_label.pack(expand=True)
+        self.animate_loading()
+
+    def animate_loading(self):
+        self.loading_text = itertools.cycle(["Loading", "Loading.", "Loading..", "Loading..."])
+        self.update_loading_text()
+
+    def update_loading_text(self):
+        if hasattr(self, 'loading_label') and self.loading_label.winfo_exists():
+            self.loading_label.config(text=next(self.loading_text))
+            self.loading_window.after(500, self.update_loading_text)
+
+    def hide_loading(self):
+        if hasattr(self, 'loading_window'):
+            self.loading_window.destroy()
+
     def process_choice(self):
         choice = self.choice.get()
         user_input = self.text_entry.get()
 
-        if choice == "image":
-            url = None
-            try:
-                url = generate_image(user_input)
-            except Exception as e:
-                messagebox.showerror("Error", f"Image generation failed: {str(e)}")
-            if url:
-                self.show_image(url)
-            else:
-                messagebox.showerror("Error", "Image generation failed!")
+        threading.Thread(target=self._process_choice, args=(choice, user_input)).start()
 
-        elif choice == "text":
-            output = moderate(user_input)
-            self.display_output(output)
+    def _process_choice(self, choice, user_input):
+        self.show_loading()
+        try:
+            if choice == "image":
+                url = None
+                try:
+                    url = generate_image(user_input)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Image generation failed: {str(e)}")
+                if url:
+                    self.show_image(url)
+                else:
+                    messagebox.showerror("Error", "Image generation failed!")
 
-        elif choice == "meme":
-            try:
-                meme_img = memeify(user_input)
-                self.show_image(img=meme_img)
-            except Exception as e:
-                messagebox.showerror("Error", f"Meme generation failed: {str(e)}")
+            elif choice == "text":
+                output = moderate(user_input)
+                self.display_output(output)
+
+            elif choice == "meme":
+                try:
+                    meme_img = memeify(user_input)
+                    self.show_image(img=meme_img)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Meme generation failed: {str(e)}")
+        finally:
+            self.hide_loading()
 
     def show_image(self, url=None, img=None):
         if url:
             response = requests.get(url, stream=True)
             img = Image.open(response.raw)
 
-        img = img.resize((512, 512), Image.LANCZOS)
+        img = img.resize((768, 768), Image.LANCZOS)
         img = ImageTk.PhotoImage(img)
         image_window = tk.Toplevel(self)
         image_window.title("Generated Image")
