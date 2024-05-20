@@ -12,34 +12,36 @@ from main import generate_image, moderate, memeify
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+BASE_FONTSIZE = 16
+
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("OpenAI Python")
-        self.geometry("400x250")
+        self.geometry("550x300")
         self.choice = tk.StringVar(value='image')
 
-        label = tk.Label(self, text="Choose an option:", font=("Arial", 14))
+        label = tk.Label(self, text="Choose an option:", font=("Arial", BASE_FONTSIZE+3))
         label.pack(pady=10)
 
         image_button = tk.Radiobutton(self, text="Generate Image", variable=self.choice, value="image",
-                                      font=("Arial", 12))
+                                      font=("Arial", BASE_FONTSIZE))
         image_button.pack()
 
         text_button = tk.Radiobutton(self, text="Moderate Text", variable=self.choice, value="text",
-                                     font=("Arial", 12))
+                                     font=("Arial", BASE_FONTSIZE))
         text_button.pack()
 
         meme_button = tk.Radiobutton(self, text="Generate Meme", variable=self.choice, value="meme",
-                                     font=("Arial", 12))
+                                     font=("Arial", BASE_FONTSIZE))
         meme_button.pack()
 
-        self.text_entry = tk.Entry(self, width=40, font=("Arial", 12))
+        self.text_entry = tk.Entry(self, width=40, font=("Arial", BASE_FONTSIZE))
         self.text_entry.pack(pady=10)
 
         submit_button = tk.Button(self, text="Submit", command=self.process_choice,
-                                  font=("Arial", 12))
+                                  font=("Arial", BASE_FONTSIZE))
         submit_button.pack()
 
     def show_loading(self):
@@ -115,7 +117,12 @@ class App(tk.Tk):
             response = requests.get(url, stream=True)
             img = Image.open(response.raw)
 
-        img = img.resize((768, 768), Image.LANCZOS)
+        if img.height < 768:
+            aspect_ratio = img.width / img.height
+            new_height = 768
+            new_width = int(new_height * aspect_ratio)
+            img = img.resize((new_width, new_height), Image.LANCZOS)
+
         img = ImageTk.PhotoImage(img)
         image_window = tk.Toplevel(self)
         image_window.title("Generated Image")
