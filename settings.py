@@ -1,0 +1,18 @@
+# settings.py
+
+# Constants for font sizes
+BASE_FONTSIZE = 16
+
+# Window dimensions
+MAIN_WINDOW_WIDTH = 550
+MAIN_WINDOW_HEIGHT = 300
+LOADING_WINDOW_WIDTH = 200
+LOADING_WINDOW_HEIGHT = 100
+
+# Text entry limits
+TEXT_ENTRY_MIN_HEIGHT = 2
+TEXT_ENTRY_MAX_HEIGHT = 10
+
+# Image size constraints
+IMAGE_MIN_HEIGHT = 768
+IMAGE_MAX_HEIGHT = 1000

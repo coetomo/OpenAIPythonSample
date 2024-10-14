@@ -1,3 +1,7 @@
 openai~=1.30.1
 requests~=2.31.0
-Pillow~=10.3.0
+Pillow>=9.5.0
+SpeechRecognition
+pyaudio
+# If you encounter issues with installing `pyaudio`, try installing manually using the .whl in `install` folder
+# E.g. `pip install .\install\PyAudio-0.2.11-cp37-cp37m-win_amd64.whl`

@@ -31,6 +31,7 @@ def generate_image(text):
         url = res.data[0].url
     except (IndexError, AttributeError, KeyError) as e:
         url = None
+    print(f"Generated URL for [{text}]: {url}")
     return url
 
 
@@ -62,12 +63,7 @@ def generate_meme_caption(url, text=DEFAULT_PROMPT_MEME):
                 "role": "user",
                 "content": [
                     {"type": "text", "text": text},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": url,
-                        },
-                    },
+                    {"type": "image_url", "image_url": {"url": url}},
                 ],
             }
         ],
