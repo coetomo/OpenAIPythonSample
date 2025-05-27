@@ -1,19 +1,17 @@
 import itertools
-import os
 import threading
 import tkinter as tk
-from tkinter import messagebox
-import openai
+from tkinter import messagebox, filedialog
 import requests
 from PIL import Image, ImageTk
 import speech_recognition as sr
 
-from main import generate_image, moderate, memeify
-from settings import *  # Import constants from settings
+from main import generate_image, moderate, init_openai, translate
+from meme import memeify
+from settings import *   # Import constants from settings
 
 # This is a BYO-OpenAPI-key project. Read the README file for more info.
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
+client = init_openai()
 
 class App(tk.Tk):
     def __init__(self):
@@ -32,16 +30,20 @@ class App(tk.Tk):
 
         # Radio buttons for selecting options
         image_button = tk.Radiobutton(self, text="Generate Image", variable=self.choice, value="image",
-                                       font=("Arial", BASE_FONTSIZE))
+                                      font=("Arial", BASE_FONTSIZE), command=self.toggle_input_tools)
         image_button.pack()
 
         text_button = tk.Radiobutton(self, text="Moderate Text", variable=self.choice, value="text",
-                                      font=("Arial", BASE_FONTSIZE))
+                                      font=("Arial", BASE_FONTSIZE), command=self.toggle_input_tools)
         text_button.pack()
 
         meme_button = tk.Radiobutton(self, text="Generate Meme", variable=self.choice, value="meme",
-                                      font=("Arial", BASE_FONTSIZE))
+                                      font=("Arial", BASE_FONTSIZE), command=self.toggle_input_tools)
         meme_button.pack()
+
+        translate_button = tk.Radiobutton(self, text="Translate Audio", variable=self.choice, value="translate",
+                                          font=("Arial", BASE_FONTSIZE), command=self.toggle_input_tools)
+        translate_button.pack()
 
         # Frame for user text input
         entry_frame = tk.Frame(self)
@@ -53,10 +55,18 @@ class App(tk.Tk):
         self.text_entry.pack(side="left")
         self.text_entry.bind("<KeyRelease>", self.adjust_textbox_height)
 
-        # Load microphone icon for the speech-to-text button
-        mic_image = Image.open("icon-mic.png")
+        # Load icons for buttons
+        mic_image = Image.open("assets/icon-mic.png")
         mic_image = mic_image.resize((24, 24), Image.LANCZOS)  # Resize the icon if needed
         self.mic_icon = ImageTk.PhotoImage(mic_image)
+        audio_image = Image.open("assets/icon-audio.png")  # You can use any icon here
+        audio_image = audio_image.resize((24, 24), Image.LANCZOS)
+        self.audio_icon = ImageTk.PhotoImage(audio_image)
+
+        # Button to choose an audio file
+        self.file_button = tk.Button(entry_frame, image=self.audio_icon, command=self.insert_audio_path)
+        self.file_button.pack(side="left", padx=5)
+        self.file_button.pack_forget()  # Hide it initially
 
         # Button for speech recognition
         self.speech_button = tk.Button(entry_frame, image=self.mic_icon, command=self.speech_to_text)
@@ -67,12 +77,27 @@ class App(tk.Tk):
                                   font=("Arial", BASE_FONTSIZE))
         submit_button.pack()
 
+        self.toggle_input_tools()
+
     def adjust_textbox_height(self, event=None):
         """
         Adjusts the height of the text entry widget based on the number of lines.
         """
         num_lines = int(self.text_entry.index('end-1c').split('.')[0])
         self.text_entry.config(height=min(max(TEXT_ENTRY_MIN_HEIGHT, num_lines), TEXT_ENTRY_MAX_HEIGHT))
+
+    def toggle_input_tools(self):
+        """
+        Shows or hides mic/audio file buttons based on selected option.
+        """
+        option = self.choice.get()
+
+        if option == "translate":
+            self.file_button.pack(side="left", padx=5)
+            self.speech_button.pack_forget()
+        else:
+            self.speech_button.pack(side="left", padx=5)
+            self.file_button.pack_forget()
 
     def speech_to_text(self):
         """
@@ -95,6 +120,16 @@ class App(tk.Tk):
                 messagebox.showerror("Error", "Error with the speech recognition service.")
             finally:
                 self.speech_button.config(bg="SystemButtonFace")  # Reset button color
+
+    def insert_audio_path(self):
+        """
+        Opens a file dialog to select an audio file and inserts the file path into the text box.
+        """
+        file_path = filedialog.askopenfilename(filetypes=[("Audio files", "*.mp3 *.wav *.m4a")])
+        if file_path:
+            self.text_entry.delete("1.0", tk.END)
+            self.text_entry.insert("1.0", file_path)
+            self.adjust_textbox_height()
 
     def show_loading(self):
         """
@@ -181,6 +216,14 @@ class App(tk.Tk):
                     self.show_image(img=meme_img)
                 except Exception as e:
                     messagebox.showerror("Error", f"Meme generation failed: {str(e)}")
+
+            elif choice == "translate":
+                try:
+                    translated_text = translate(user_input)
+                    self.display_translated_text(translated_text)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Translation failed: {str(e)}")
+
         finally:
             self.hide_loading()
 
@@ -241,6 +284,21 @@ class App(tk.Tk):
                 score_value_label.grid(row=row_number, column=2, padx=10, pady=5, sticky="w")
 
             row_number += 1
+
+    def display_translated_text(self, text):
+        """
+        Displays the translated text in a new window.
+        """
+        result_window = tk.Toplevel(self)
+        result_window.title("Translated Text")
+
+        label = tk.Label(result_window, text="Translated Text:", font=("Arial", 16, "bold"))
+        label.pack(pady=10)
+
+        text_box = tk.Text(result_window, wrap="word", font=("Arial", BASE_FONTSIZE))
+        text_box.insert(tk.END, text)
+        text_box.pack(padx=10, pady=10)
+        text_box.config(state="disabled")
 
 
 if __name__ == "__main__":

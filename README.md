@@ -9,6 +9,7 @@ with their API. Tested using Windows 10-11 with Python 3.7 & 3.12.
 - Text Moderation
 - Text and GUI modes (Tkinter)
 - Generate captions for images/memes
+- Translate foreign language audio into English text
 - (more to come?)
 
 
